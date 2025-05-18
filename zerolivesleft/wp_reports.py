@@ -5,9 +5,9 @@ from redbot.core.bot import Red
 from aiohttp import web
 import aiohttp
 import asyncio
+from redbot.core.utils import log  # Import for logging
 
-# This is the crucial line - make sure it's exactly like this:
-class WPReports(commands.Cog): 
+class WPReports(commands.Cog):
     """Handle WordPress user reports in Discord."""
 
     def __init__(self, bot: Red):
@@ -65,18 +65,23 @@ class WPReports(commands.Cog):
             reporter = data["reporter"]
             reason = data["reason"]
             wp_report_id = data["wp_report_id"]
-        except Exception as e:
+        except (KeyError, ValueError, TypeError) as e:  # More specific error handling
+            log.exception("Invalid report data received:", exc_info=e)
             return web.json_response({"error": str(e)}, status=400)
 
         guild = self.bot.get_guild(guild_id)
         if not guild:
+            log.error("Guild not found for ID: %s", guild_id)
             return web.json_response({"error": "Guild not found"}, status=404)
 
         channel_id = await self.config.guild(guild).report_channel()
         if not channel_id:
+            log.error("Report channel not set for guild: %s", guild.name)
             return web.json_response({"error": "Report channel not set"}, status=400)
+        
         channel = guild.get_channel(channel_id)
         if not channel:
+            log.error("Channel not found for ID: %s in guild: %s", channel_id, guild.name)
             return web.json_response({"error": "Channel not found"}, status=404)
 
         embed = discord.Embed(
@@ -88,7 +93,12 @@ class WPReports(commands.Cog):
                         f"**WP Report ID:** {wp_report_id}"
         )
         view = ReportActionView(self, wp_report_id, guild)
-        await channel.send(embed=embed, view=view)
+        try:
+            await channel.send(embed=embed, view=view)
+        except discord.HTTPException as e:
+            log.exception("Failed to send report to Discord:", exc_info=e)
+            return web.json_response({"error": "Failed to send report to Discord"}, status=500)
+
         return web.json_response({"status": "ok"})
 
     async def update_wp_status(self, guild, wp_report_id, status):
@@ -96,6 +106,7 @@ class WPReports(commands.Cog):
         url = await self.config.guild(guild).wp_api_url()
         key = await self.config.guild(guild).wp_api_key()
         if not url or not key:
+            log.error("WordPress API URL or key not set.")
             return
 
         payload = {
@@ -103,12 +114,18 @@ class WPReports(commands.Cog):
             "status": status,
             "api_key": key
         }
-        async with aiohttp.ClientSession() as session:
-            try:
+
+        try:
+            async with aiohttp.ClientSession() as session:
                 async with session.post(url, json=payload, timeout=5) as resp:
-                    await resp.text()
-            except Exception as e:
-                error_log(f"Error updating WP report status: {e}");
+                    if resp.status != 200:
+                        log.error("Failed to update WordPress report status.  Status code: %s, Response: %s", resp.status, await resp.text())
+                    else:
+                        log.info("Successfully updated WordPress report status for report ID %s to %s", wp_report_id, status)
+        except aiohttp.ClientError as e:
+            log.exception("Error updating WP report status:", exc_info=e)
+        except Exception as e:
+            log.exception("Unexpected error updating WP report status:", exc_info=e)
 
 
 class ReportActionView(discord.ui.View):

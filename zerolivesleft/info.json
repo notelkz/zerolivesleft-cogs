@@ -4,5 +4,6 @@
   "short": "Short description",
   "description": "Longer description of your cog",
   "requirements": ["aiohttp"],
-  "tags": ["tag1", "tag2"]
+  "tags": ["tag1", "tag2"],
+  "name": "zerolivesleft" 
 }

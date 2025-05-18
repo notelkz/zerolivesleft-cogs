@@ -1,4 +1,4 @@
-from .zerolivesleft import ZeroLivesLeft
+from .main import ZeroLivesLeft 
 from .wp_reports import WPReports
 
 async def setup(bot):

@@ -1,8 +1,7 @@
 {
-  "name": "zerolivesleft",  
-  "author": ["Your Name"],
-  "short": "Short Description",
-  "description": "Longer description of your cog",
-  "requirements": ["aiohttp"],
-  "tags": ["tag1", "tag2"]
+    "name": "zerolivesleft",
+    "author": ["elkz"],  
+    "short": "Short Description",
+    "description": "Community Management",
+    "requirements": ["aiohttp"] 
 }
